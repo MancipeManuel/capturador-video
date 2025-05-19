@@ -1,0 +1,42 @@
+✅ ¿Qué hace el programa?
+Te pedirá elegir entre dos imágenes según el estilo del video.
+
+Luego te pedirá:
+
+El nombre de la carpeta donde se guardarán las capturas.
+
+La altura de las imágenes en centímetros.
+
+Después, seleccionas el video.
+
+El script analiza los cambios y guarda las capturas automáticamente como:
+
+cambio_3 min 0-28.jpg
+Además, genera un archivo llamado registro_capturas.csv con todos los detalles.
+
+PASO 1: Clonar o descargar el proyecto
+Si tienes Git instalado:
+
+git clone https://github.com/tu_usuario/capturador-video.git
+cd capturador-video
+O descarga el ZIP desde GitHub y extrae todo el contenido.
+
+✅ PASO 2: Instalar Python (si no lo tienes)
+1.Ve a: https://www.python.org/downloads/
+
+2.Descarga la última versión de Python (recomendado Python 3.10 o superior).
+
+3.Muy importante: durante la instalación, marca la casilla ✅ "Add Python to PATH".
+
+4.Haz clic en "Install Now".
+
+✅ PASO 3: Instalar las librerías necesarias
+Una vez instalado Python, abre una terminal o consola (cmd) y ejecuta:
+python -m pip install --upgrade pip
+pip install -r requirements.txt
+Esto instalará automáticamente: opencv-python, numpy y pillow.
+
+✅ PASO 4: Ejecutar el programa
+Desde la terminal, estando en la carpeta donde descargaste el script, ejecuta:
+
+python capturador.py
