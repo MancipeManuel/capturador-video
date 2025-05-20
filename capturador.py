@@ -112,15 +112,59 @@ if fps == 0:
     print("❌ FPS no detectado correctamente.")
     exit()
 
-print(f"🎞️ FPS del video: {fps}")
+# Ventana para elegir rango o todo el video
+modo = {"valor": "todo"}
 
-ret, prev_frame = video.read()
-if not ret:
-    print("❌ No se pudo leer el primer frame.")
-    exit()
+def elegir_todo():
+    modo["valor"] = "todo"
+    selector.destroy()
 
-prev_gray = cv2.cvtColor(prev_frame, cv2.COLOR_BGR2GRAY)
+def elegir_rango():
+    modo["valor"] = "rango"
+    selector.destroy()
+
+selector = Tk()
+selector.title("¿Qué parte del video deseas analizar?")
+Label(selector, text="Selecciona una opción:").pack(pady=10)
+Button(selector, text="🎞️ Analizar todo el video", width=30, command=elegir_todo).pack(pady=5)
+Button(selector, text="⏱️ Analizar solo un rango de tiempo", width=30, command=elegir_rango).pack(pady=5)
+selector.mainloop()
+
+# Inicializar variables
+frame_inicio = 0
+frame_fin = float("inf")
 frame_count = 1
+
+# Obtener rango si aplica
+if modo["valor"] == "rango":
+    min_inicio = simpledialog.askinteger("Inicio", "⏱ Minuto de inicio:", minvalue=0)
+    seg_inicio = simpledialog.askinteger("Inicio", "⏱ Segundo de inicio:", minvalue=0, maxvalue=59)
+    min_fin = simpledialog.askinteger("Fin", "⏱ Minuto de fin:", minvalue=0)
+    seg_fin = simpledialog.askinteger("Fin", "⏱ Segundo de fin:", minvalue=0, maxvalue=59)
+
+    inicio_seg = (min_inicio or 0) * 60 + (seg_inicio or 0)
+    fin_seg = (min_fin or 0) * 60 + (seg_fin or 0)
+
+    frame_inicio = int(inicio_seg * fps)
+    frame_fin = int(fin_seg * fps)
+
+    video.set(cv2.CAP_PROP_POS_FRAMES, frame_inicio)
+    frame_count = frame_inicio + 1
+
+    ret, prev_frame = video.read()
+    if not ret:
+        print("❌ No se pudo leer el primer frame del rango seleccionado.")
+        exit()
+
+    prev_gray = cv2.cvtColor(prev_frame, cv2.COLOR_BGR2GRAY)
+    print(f"\n🎯 Analizando desde {min_inicio}:{seg_inicio:02d} hasta {min_fin}:{seg_fin:02d}\n")
+else:
+    ret, prev_frame = video.read()
+    if not ret:
+        print("❌ No se pudo leer el primer frame.")
+        exit()
+    prev_gray = cv2.cvtColor(prev_frame, cv2.COLOR_BGR2GRAY)
+
 capture_count = 0
 
 log_file = os.path.join(output_folder, "registro_capturas.csv")
@@ -133,6 +177,10 @@ with open(log_file, mode='w', newline='') as log_csv:
     print(f"\n📸 Detectando cambios en {os.path.basename(video_path)}...\n")
 
     while True:
+        if frame_count > frame_fin:
+            print("⏹ Se alcanzó el final del rango seleccionado.")
+            break
+
         ret, frame = video.read()
         if not ret:
             break
