@@ -6,16 +6,15 @@ from tkinter import Tk, filedialog, simpledialog, Button, Label, Frame
 from PIL import Image, ImageTk
 from datetime import datetime
 
-# DPI estándar
-DPI = 96
+DPI = 96  # Resolución estándar para conversión de cm a píxeles
 
-# Función para cargar y redimensionar imagen proporcionalmente
+# ------------------------- FUNCIONES AUXILIARES -------------------------
+
 def cargar_imagen(path, ancho_max, alto_max):
     img = Image.open(path)
     img.thumbnail((ancho_max, alto_max), Image.LANCZOS)
     return ImageTk.PhotoImage(img)
 
-# Función para mostrar selector visual
 def mostrar_selector_visual():
     root = Tk()
     root.title("Selector de estilo")
@@ -49,7 +48,31 @@ def mostrar_selector_visual():
     root.destroy()
     return selected_option["value"]
 
-# Selección de umbral
+def mostrar_selector_modo():
+    modo = {"valor": None}
+    win = Tk()
+    win.title("¿Qué parte del video deseas analizar?")
+    win.geometry("340x150")
+    win.resizable(False, False)
+
+    def seleccionar_todo():
+        modo["valor"] = "todo"
+        win.destroy()
+
+    def seleccionar_rango():
+        modo["valor"] = "rango"
+        win.destroy()
+
+    Label(win, text="Selecciona una opción:", font=("Arial", 12)).pack(pady=10)
+    Button(win, text="🎞️ Analizar TODO el video", width=30, command=seleccionar_todo).pack(pady=5)
+    Button(win, text="⏱️ Analizar solo un RANGO", width=30, command=seleccionar_rango).pack(pady=5)
+
+    win.mainloop()
+    return modo["valor"]
+
+# ------------------------- INICIO DEL FLUJO -------------------------
+
+# 1. Seleccionar tipo de video visualmente
 selected_option = mostrar_selector_visual()
 if selected_option == 1:
     threshold = 2
@@ -61,11 +84,17 @@ else:
 
 print(f"🔧 Umbral seleccionado: {threshold}")
 
-# Ocultar ventana para el resto del flujo
+# 2. Seleccionar modo de análisis
+modo = mostrar_selector_modo()
+if not modo:
+    print("❌ No se seleccionó un modo de análisis.")
+    exit()
+
+# 3. Crear ventana oculta para diálogos posteriores
 root = Tk()
 root.withdraw()
 
-# Pedir nombre de carpeta de salida
+# 4. Configuración de carpeta
 output_folder = simpledialog.askstring(
     "Nombre de carpeta",
     "📁 Escribe el nombre de la carpeta donde se guardarán las capturas:"
@@ -73,7 +102,7 @@ output_folder = simpledialog.askstring(
 if not output_folder:
     output_folder = "capturas_cambios"
 
-# Pedir altura final del frame en centímetros y convertir a píxeles
+# 5. Altura en cm → px
 alto_cm = simpledialog.askfloat(
     "Altura en centímetros",
     "📏 Escribe el alto (en cm) para las imágenes capturadas (ej: 10.0):",
@@ -85,13 +114,13 @@ if not alto_cm:
 alto_final = int((alto_cm / 2.54) * DPI)
 print(f"📐 Altura final: {alto_cm} cm → {alto_final} px")
 
-# Carpeta con timestamp
+# 6. Crear carpeta con timestamp
 timestamp_folder = datetime.now().strftime("%Y%m%d_%H%M%S")
 output_folder = f"{output_folder}_{timestamp_folder}"
 os.makedirs(output_folder, exist_ok=True)
 print(f"📁 Carpeta creada: {output_folder}")
 
-# Selección de video
+# 7. Selección del archivo de video
 print("📂 Selecciona el archivo de video...")
 video_path = filedialog.askopenfilename(
     title="Selecciona un video",
@@ -112,31 +141,12 @@ if fps == 0:
     print("❌ FPS no detectado correctamente.")
     exit()
 
-# Ventana para elegir rango o todo el video
-modo = {"valor": "todo"}
-
-def elegir_todo():
-    modo["valor"] = "todo"
-    selector.destroy()
-
-def elegir_rango():
-    modo["valor"] = "rango"
-    selector.destroy()
-
-selector = Tk()
-selector.title("¿Qué parte del video deseas analizar?")
-Label(selector, text="Selecciona una opción:").pack(pady=10)
-Button(selector, text="🎞️ Analizar todo el video", width=30, command=elegir_todo).pack(pady=5)
-Button(selector, text="⏱️ Analizar solo un rango de tiempo", width=30, command=elegir_rango).pack(pady=5)
-selector.mainloop()
-
-# Inicializar variables
+# 8. Configuración de rango
 frame_inicio = 0
 frame_fin = float("inf")
 frame_count = 1
 
-# Obtener rango si aplica
-if modo["valor"] == "rango":
+if modo == "rango":
     min_inicio = simpledialog.askinteger("Inicio", "⏱ Minuto de inicio:", minvalue=0)
     seg_inicio = simpledialog.askinteger("Inicio", "⏱ Segundo de inicio:", minvalue=0, maxvalue=59)
     min_fin = simpledialog.askinteger("Fin", "⏱ Minuto de fin:", minvalue=0)
@@ -158,6 +168,7 @@ if modo["valor"] == "rango":
 
     prev_gray = cv2.cvtColor(prev_frame, cv2.COLOR_BGR2GRAY)
     print(f"\n🎯 Analizando desde {min_inicio}:{seg_inicio:02d} hasta {min_fin}:{seg_fin:02d}\n")
+
 else:
     ret, prev_frame = video.read()
     if not ret:
@@ -166,10 +177,10 @@ else:
     prev_gray = cv2.cvtColor(prev_frame, cv2.COLOR_BGR2GRAY)
 
 capture_count = 0
-
 log_file = os.path.join(output_folder, "registro_capturas.csv")
 
-# Crear CSV de registro
+# ------------------------- PROCESAMIENTO DEL VIDEO -------------------------
+
 with open(log_file, mode='w', newline='') as log_csv:
     writer = csv.writer(log_csv)
     writer.writerow(["Captura", "Tiempo", "Frame", "Archivo"])
@@ -189,7 +200,7 @@ with open(log_file, mode='w', newline='') as log_csv:
         diff = cv2.absdiff(prev_gray, gray)
         mean_diff = np.mean(diff)
 
-        # Mostrar video en tiempo real
+        # Mostrar el frame actual
         preview_frame = cv2.resize(frame, (640, 360))
         cv2.imshow("Analizando video (presiona Q para salir)", preview_frame)
         if cv2.waitKey(1) & 0xFF == ord('q'):
